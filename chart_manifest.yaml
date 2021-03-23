@@ -1,0 +1,6 @@
+charts:
+  - name: azuredisk-csi-driver
+    repo: https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/charts
+    version: v1.1.1
+  - name: datadog
+    repo: https://helm.datadoghq.com

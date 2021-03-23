@@ -5,7 +5,18 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var logger *zap.SugaredLogger
+var (
+	logger *zap.SugaredLogger
+
+	cfg config
+)
+
+func main() {
+	logger = InitLogger()
+
+	cfg.loadConfigs()
+	defer logger.Sync()
+}
 
 // InitLogger - initilize zap logger
 func InitLogger() *zap.SugaredLogger {
@@ -16,9 +27,4 @@ func InitLogger() *zap.SugaredLogger {
 	corelogger, _ := config.Build()
 
 	return corelogger.Sugar()
-}
-
-func main() {
-	logger = InitLogger()
-	defer logger.Sync()
 }
