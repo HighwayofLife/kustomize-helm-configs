@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 	helm "helm.sh/helm/v3/pkg/action"
@@ -44,7 +43,6 @@ func loadChartsManifest() (Charts, error) {
 		)
 		return charts, err
 	}
-	fmt.Println("Unmarshalled Yaml Data")
 
 	return charts, nil
 }
@@ -57,6 +55,7 @@ func downloadHelmCharts(charts Charts) error {
 		return err
 	}
 
+	settings := cli.New()
 	client := helm.NewPull()
 	client.DestDir = cfg.ChartsOutputDir
 	client.Untar = true
@@ -65,30 +64,53 @@ func downloadHelmCharts(charts Charts) error {
 		if chart.Version != "" {
 			client.Version = chart.Version
 		}
+		client.RepoURL = chart.Repo
 
-		u, _ := url.Parse(chart.Repo)
-		u.Path = path.Join(u.Path, chart.Name)
-		fp := u.String()
+		removeFiles(cfg.ChartsOutputDir + "/" + chart.Name + "*")
 
 		logger.Infow("Downloading Helm Chart",
 			"chart", chart.Name,
 			"repo", chart.Repo,
-			"fullPath", fp,
 			"version", chart.Version,
 		)
-		client.Settings = cli.New()
+		client.Settings = settings
 
-		output, err := client.Run(fp)
+		output, err := client.Run(chart.Name)
 		if err != nil {
 			logger.Errorw("Error pulling chart",
 				"chart", chart.Name,
 				"repo", chart.Repo,
-				"fullPath", fp,
 				"version", chart.Version,
+				"output", output,
+				"error", err.Error(),
 			)
 			return err
 		}
-		fmt.Printf("Pull Output: %s", output)
+
+		removeFiles(cfg.ChartsOutputDir + "/" + chart.Name + "*tgz")
+	}
+
+	return nil
+}
+
+func removeFiles(glob string) error {
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		logger.Fatalw("Error finding files",
+			"glob", glob,
+			"error", err.Error(),
+		)
+		return err
+	}
+	for _, f := range files {
+		if err := os.RemoveAll(f); err != nil {
+			logger.Fatalw("Unable to delete file",
+				"glob", glob,
+				"file", f,
+				"error", err.Error(),
+			)
+			return err
+		}
 	}
 
 	return nil
