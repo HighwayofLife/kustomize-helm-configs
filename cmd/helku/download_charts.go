@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -23,7 +22,6 @@ type Chart struct {
 
 func loadChartsManifest() (Charts, error) {
 	var charts Charts
-	fmt.Println("load charts manifest func")
 
 	yamlData, err := ioutil.ReadFile(cfg.ChartsManifestFile)
 	if err != nil {
@@ -33,7 +31,6 @@ func loadChartsManifest() (Charts, error) {
 		)
 		return charts, err
 	}
-	fmt.Println("Yaml Data")
 
 	err = yaml.Unmarshal(yamlData, &charts)
 	if err != nil {

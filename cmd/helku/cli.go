@@ -13,12 +13,13 @@ func initCliApp() error {
 	app := &cli.App{
 		Name:        "helku",
 		Version:     "v0.0.1",
+		Usage:       "Manage helm charts for local cache and kustomize overlays",
 		Description: "Download helm charts and apply Kustomize overlays",
 		Commands: []*cli.Command{
 			{
 				Name:    "download",
-				Aliases: []string{"pull"},
-				Usage:   "Download helm charts from manifest file",
+				Usage:   "Download (pull) helm charts from manifest file",
+				Action:  runDownloadCharts,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "destination",
@@ -27,13 +28,19 @@ func initCliApp() error {
 						Value:   cfg.ChartsOutputDir,
 					},
 				},
-				Action: runDownloadCharts,
 			},
 			{
-				Name:    "template",
-				Aliases: []string{"t"},
-				Usage:   "Run helm template on downloaded charts",
-				Action:  runHelmTemplate,
+				Name:   "template",
+				Usage:  "Run helm template on downloaded charts",
+				Action: runHelmTemplate,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "output-dir",
+						Aliases: []string{"o"},
+						Usage:   "writes the executed templates to files in output-dir `DIR`",
+						Value:   cfg.ClusterBaseDir,
+					},
+				},
 			},
 		},
 	}
@@ -74,26 +81,34 @@ func runHelmTemplate(c *cli.Context) error {
 			continue
 		}
 
-		data, err := ioutil.ReadFile(file.Name() + "/Chart.yaml")
-		if err != nil {
-			logger.Errorw(
-				"Unable to read file",
-				"file", file.Name()+"/Chart.yaml",
-				"error", err.Error(),
-			)
-		}
-
-		match, err := regexp.Match(`^version: (.+)`, data)
-		if err != nil {
-			logger.Errorw(
-				"Error finding version in Chart.yaml",
-				"file", file.Name()+"/Chart.yaml",
-				"error", err.Error(),
-			)
-		}
-		fmt.Println(match)
+		chartVersion(file.Name())
 	}
 
-	fmt.Fprintf(c.App.Writer, "Generated manifests in %s from %s", cfg.ClusterBaseDir, cfg.ChartsOutputDir)
+	fmt.Fprintf(c.App.Writer, "Would generate manifests in %s from %s", cfg.ClusterBaseDir, cfg.ChartsOutputDir)
+	return nil
+}
+
+func chartVersion(chartDir string) error {
+	data, err := ioutil.ReadFile(chartDir + "/Chart.yaml")
+	if err != nil {
+		logger.Errorw(
+			"Unable to read file",
+			"file", chartDir+"/Chart.yaml",
+			"error", err.Error(),
+		)
+		return err
+	}
+
+	match, err := regexp.Match(`^version: (.+)`, data)
+	if err != nil {
+		logger.Errorw(
+			"Error finding version in Chart.yaml",
+			"file", chartDir+"/Chart.yaml",
+			"error", err.Error(),
+		)
+		return err
+	}
+	fmt.Println(match)
+
 	return nil
 }

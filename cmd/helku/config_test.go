@@ -9,15 +9,17 @@ import (
 
 func TestLoadConfigs(t *testing.T) {
 	expectConfig := config{
-		ChartsOutputDir:    "test_charts",
+		ChartsOutputDir:    "test-charts",
 		ChartsManifestFile: "test_chart_manifest.yaml",
+		ChartsValuesDir:    "test-charts/values",
+		ClusterBaseDir:     "test-base/charts",
 	}
 
-	os.Setenv("HELM_KUSTOMIZE_OUTPUT_DIR", expectConfig.ChartsOutputDir)
-	os.Setenv("HELM_KUSTOMIZE_CHARTS_MANIFEST_FILE", expectConfig.ChartsManifestFile)
+	os.Setenv("HELKU_OUTPUT_DIR", expectConfig.ChartsOutputDir)
+	os.Setenv("HELKU_CHARTS_MANIFEST_FILE", expectConfig.ChartsManifestFile)
+	os.Setenv("HELKU_CHARTS_VALUES_DIR", expectConfig.ChartsValuesDir)
+	os.Setenv("HELKU_CLUSTER_BASE_DIR", expectConfig.ClusterBaseDir)
 
 	cfg.loadConfigs()
 	assert.Equal(t, expectConfig, cfg)
-	os.Unsetenv("HELM_KUSTOMIZE_OUTPUT_DIR")
-	os.Unsetenv("HELM_KUSTOMIZE_CHARTS_MANIFEST_FILE")
 }

@@ -9,7 +9,6 @@ import (
 )
 
 func TestLoadChartsManifest(t *testing.T) {
-	cfg.ChartsOutputDir = "../../charts"
 	cfg.ChartsManifestFile = "../../chart_manifest.yaml"
 
 	_, err := loadChartsManifest()
@@ -20,28 +19,60 @@ func TestLoadChartsManifest(t *testing.T) {
 	}
 }
 
-func TestDownloadHelmCharts(t *testing.T) {
+func testChartsHelper() Charts {
 	var charts Charts
-	cfg.ChartsOutputDir = "../../charts"
+
+	cfg.ChartsOutputDir = "../../test-charts"
+	cfg.ChartsValuesDir = cfg.ChartsOutputDir + "/values"
 	cfg.ChartsManifestFile = "../../chart_manifest.yaml"
-	var (
-		chartRepo = "https://helm.datadoghq.com"
-		chartName = "datadog"
-	)
 
 	charts.Charts = append(charts.Charts, Chart{
-		Repo: chartRepo,
-		Name: chartName,
+		Repo: "https://helm.datadoghq.com",
+		Name: "datadog",
 	})
+
+	return charts
+}
+
+func TestDownloadHelmCharts(t *testing.T) {
+	charts := testChartsHelper()
 
 	err := downloadHelmCharts(charts)
 	if err != nil {
 		t.Errorf("Expected no error, got %s", err.Error())
 	}
 
+	chartName := charts.Charts[0].Name
+
 	if _, err := os.Stat(cfg.ChartsOutputDir + "/" + chartName); os.IsNotExist(err) {
 		t.Errorf("Expected chart directory %s to exist, but does not", chartName)
 	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.ChartsOutputDir)
+	})
+}
+
+func TestCreateValuesOverride(t *testing.T) {
+	charts := testChartsHelper()
+	valuesFile := cfg.ChartsValuesDir + "/" + charts.Charts[0].Name + ".yaml"
+
+	if _, err := os.Stat(valuesFile); err == nil {
+		t.Errorf("Values override file already exists: %s", valuesFile)
+	}
+
+	err := createValuesOverride(charts)
+	if err != nil {
+		t.Errorf("Expected no error creating Values override, got %s", err.Error())
+	}
+
+	if _, err := os.Stat(valuesFile); os.IsNotExist(err) {
+		t.Errorf("Expected values file, but got file not found. %s", err.Error())
+	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(valuesFile)
+	})
 }
 
 func TestRemoveFiles(t *testing.T) {
