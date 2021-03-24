@@ -6,7 +6,7 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.16.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.0.3
 	helm.sh/helm/v3 v3.5.3
 )

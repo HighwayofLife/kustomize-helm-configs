@@ -61,9 +61,7 @@ func downloadHelmCharts(charts Charts) error {
 	client.Untar = true
 
 	for _, chart := range charts.Charts {
-		if chart.Version != "" {
-			client.Version = chart.Version
-		}
+		client.Version = chart.Version
 		client.RepoURL = chart.Repo
 
 		removeFiles(cfg.ChartsOutputDir + "/" + chart.Name + "*")
@@ -92,22 +90,32 @@ func downloadHelmCharts(charts Charts) error {
 	return nil
 }
 
-func createValuesOverride(chartName string) error {
-	// Override already exists
-	if _, err := os.Stat(cfg.ChartsValuesDir + chartName + ".yaml"); err == nil {
-		return nil
-	}
+func createValuesOverride(charts Charts) error {
 
 	os.MkdirAll(cfg.ChartsValuesDir, 0755)
-	bytes := []byte("namespace: default\n")
-	err := ioutil.WriteFile(cfg.ChartsValuesDir+chartName+".yaml", bytes, 0644)
-	if err != nil {
-		logger.Errorw("Error writing values override for chart",
-			"values_dir", cfg.ChartsValuesDir,
-			"chart", chartName,
-			"error", err.Error(),
+	for _, chart := range charts.Charts {
+		valuesFile := cfg.ChartsValuesDir + "/" + chart.Name + ".yaml"
+		// Override already exists
+		if _, err := os.Stat(valuesFile); err == nil {
+			continue
+		}
+
+		bytes := []byte("namespace: default\n")
+		err := ioutil.WriteFile(valuesFile, bytes, 0644)
+		if err != nil {
+			logger.Errorw("Error writing values override for chart",
+				"values_file", valuesFile,
+				"chart", chart.Name,
+				"error", err.Error(),
+			)
+			return err
+		}
+
+		logger.Infow(
+			"Created values override for chart",
+			"values_file", valuesFile,
+			"chart", chart.Name,
 		)
-		return err
 	}
 
 	return nil
