@@ -47,9 +47,9 @@ func loadChartsManifest() (Charts, error) {
 	return charts, nil
 }
 
+// loop over charts
+// run helm pull into output dir
 func downloadHelmCharts(charts Charts) error {
-	// loop over charts
-	// run helm pull into output dir
 	err := os.MkdirAll(cfg.ChartsOutputDir, 0755)
 	if err != nil {
 		return err
@@ -75,19 +75,39 @@ func downloadHelmCharts(charts Charts) error {
 		)
 		client.Settings = settings
 
-		output, err := client.Run(chart.Name)
+		_, err := client.Run(chart.Name)
 		if err != nil {
 			logger.Errorw("Error pulling chart",
 				"chart", chart.Name,
 				"repo", chart.Repo,
 				"version", chart.Version,
-				"output", output,
 				"error", err.Error(),
 			)
 			return err
 		}
 
 		removeFiles(cfg.ChartsOutputDir + "/" + chart.Name + "*tgz")
+	}
+
+	return nil
+}
+
+func createValuesOverride(chartName string) error {
+	// Override already exists
+	if _, err := os.Stat(cfg.ChartsValuesDir + chartName + ".yaml"); err == nil {
+		return nil
+	}
+
+	os.MkdirAll(cfg.ChartsValuesDir, 0755)
+	bytes := []byte("namespace: default\n")
+	err := ioutil.WriteFile(cfg.ChartsValuesDir+chartName+".yaml", bytes, 0644)
+	if err != nil {
+		logger.Errorw("Error writing values override for chart",
+			"values_dir", cfg.ChartsValuesDir,
+			"chart", chartName,
+			"error", err.Error(),
+		)
+		return err
 	}
 
 	return nil
