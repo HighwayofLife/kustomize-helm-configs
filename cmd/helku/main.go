@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -17,7 +19,7 @@ func main() {
 	cfg.loadConfigs()
 	defer logger.Sync()
 
-	initCliApp()
+	initCliApp(os.Args)
 }
 
 // InitLogger - initilize zap logger

@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -16,10 +17,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestInitLogger(t *testing.T) {
-	if logger == nil {
-		t.Fatal("expected logger to never be nil")
-	}
-	logger.Infof("Logger Initialized")
+	assert := assert.New(t)
+	assert.NotNil(logger, "Expects logger to not be nil")
+	logger.Info("Logger Initialized")
 }
 
 // InitLogger - initilize zap logger

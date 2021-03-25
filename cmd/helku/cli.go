@@ -3,13 +3,18 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"regexp"
 
 	"github.com/urfave/cli/v2"
 )
 
-func initCliApp() error {
+type ChartYAML struct {
+	AppVersion string `json:"appVersion"`
+	Name       string `json:"name"`
+	Version    string `json:"version"`
+}
+
+func initCliApp(args []string) error {
 	app := &cli.App{
 		Name:        "helku",
 		Version:     "v0.0.1",
@@ -17,15 +22,26 @@ func initCliApp() error {
 		Description: "Download helm charts and apply Kustomize overlays",
 		Commands: []*cli.Command{
 			{
-				Name:    "download",
-				Usage:   "Download (pull) helm charts from manifest file",
-				Action:  runDownloadCharts,
+				Name:   "download",
+				Usage:  "Download (pull) helm charts from manifest file",
+				Action: runDownloadCharts,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "destination",
 						Aliases: []string{"d"},
 						Usage:   "`DIR` location to write the chart.",
 						Value:   cfg.ChartsOutputDir,
+					},
+					&cli.StringFlag{
+						Name:    "manifest",
+						Aliases: []string{"m"},
+						Usage:   "YAML Manifest `FILE` containing a list of charts",
+						Value:   cfg.ChartsManifestFile,
+					},
+					&cli.StringFlag{
+						Name:  "values-dir",
+						Usage: "`DIR` for values overrides.",
+						Value: cfg.ChartsValuesDir,
 					},
 				},
 			},
@@ -38,14 +54,14 @@ func initCliApp() error {
 						Name:    "output-dir",
 						Aliases: []string{"o"},
 						Usage:   "writes the executed templates to files in output-dir `DIR`",
-						Value:   cfg.ClusterBaseDir,
+						Value:   cfg.ClusterChartsBaseDir,
 					},
 				},
 			},
 		},
 	}
 
-	err := app.Run(os.Args)
+	err := app.Run(args)
 	if err != nil {
 		logger.Fatalw("Failed to run app", "error", err.Error())
 	}
@@ -54,6 +70,18 @@ func initCliApp() error {
 }
 
 func runDownloadCharts(c *cli.Context) error {
+	if c.String("manifest") != "" {
+		cfg.ChartsManifestFile = c.String("manifest")
+	}
+
+	if c.String("destination") != "" {
+		cfg.ChartsOutputDir = c.String("destination")
+	}
+
+	if c.String("values-dir") != "" {
+		cfg.ChartsValuesDir = c.String("values-dir")
+	}
+
 	charts, _ := loadChartsManifest()
 	downloadHelmCharts(charts)
 	createValuesOverride(charts)
@@ -64,6 +92,10 @@ func runDownloadCharts(c *cli.Context) error {
 }
 
 func runHelmTemplate(c *cli.Context) error {
+	if c.String("output-dir") != "" {
+		cfg.ClusterChartsBaseDir = c.String("output-dir")
+	}
+
 	files, err := ioutil.ReadDir(cfg.ChartsOutputDir)
 	if err != nil {
 		logger.Errorw("Error reading directory",
@@ -81,10 +113,10 @@ func runHelmTemplate(c *cli.Context) error {
 			continue
 		}
 
-		chartVersion(file.Name())
+		chartVersion(cfg.ChartsOutputDir + "/" + file.Name())
 	}
 
-	fmt.Fprintf(c.App.Writer, "Would generate manifests in %s from %s", cfg.ClusterBaseDir, cfg.ChartsOutputDir)
+	fmt.Fprintf(c.App.Writer, "Would generate manifests in %s from %s", cfg.ClusterChartsBaseDir, cfg.ChartsOutputDir)
 	return nil
 }
 
@@ -98,17 +130,21 @@ func chartVersion(chartDir string) error {
 		)
 		return err
 	}
+	logger.Info("Looking for a regex string...")
 
-	match, err := regexp.Match(`^version: (.+)`, data)
+	r, err := regexp.Compile(`(?m)^version: (.+)`)
 	if err != nil {
 		logger.Errorw(
-			"Error finding version in Chart.yaml",
+			"Error compiling regexp",
 			"file", chartDir+"/Chart.yaml",
 			"error", err.Error(),
 		)
 		return err
 	}
-	fmt.Println(match)
+	match := r.FindStringSubmatch(string(data))
+	if len(match) > 1 {
+		fmt.Println(match[1])
+	}
 
 	return nil
 }
