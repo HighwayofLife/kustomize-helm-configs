@@ -5,48 +5,41 @@ import (
 	"os"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadChartsManifest(t *testing.T) {
 	cfg.ChartsManifestFile = "../../chart_manifest.yaml"
 
 	_, err := loadChartsManifest()
-	assert.Assert(t, err)
-	assert.NilError(t, err)
-	if err != nil {
-		t.Errorf("Expected no error, got %s", err.Error())
-	}
+	assert := assert.New(t)
+	assert.NoError(err, "Expects no error")
 }
 
 func testChartsHelper() Charts {
-	var charts Charts
-
 	cfg.ChartsOutputDir = "../../test-charts"
 	cfg.ChartsValuesDir = cfg.ChartsOutputDir + "/values"
 	cfg.ChartsManifestFile = "../../chart_manifest.yaml"
 
-	charts.Charts = append(charts.Charts, Chart{
-		Repo: "https://helm.datadoghq.com",
-		Name: "datadog",
-	})
-
-	return charts
+	return Charts{
+		[]Chart{
+			{
+				Repo: "https://helm.datadoghq.com",
+				Name: "datadog",
+			},
+		},
+	}
 }
 
 func TestDownloadHelmCharts(t *testing.T) {
 	charts := testChartsHelper()
 
+	assert := assert.New(t)
 	err := downloadHelmCharts(charts)
-	if err != nil {
-		t.Errorf("Expected no error, got %s", err.Error())
-	}
+	assert.NoError(err, "expects no error")
 
 	chartName := charts.Charts[0].Name
-
-	if _, err := os.Stat(cfg.ChartsOutputDir + "/" + chartName); os.IsNotExist(err) {
-		t.Errorf("Expected chart directory %s to exist, but does not", chartName)
-	}
+	assert.DirExists(cfg.ChartsOutputDir + "/" + chartName)
 
 	t.Cleanup(func() {
 		os.RemoveAll(cfg.ChartsOutputDir)
@@ -57,21 +50,15 @@ func TestCreateValuesOverride(t *testing.T) {
 	charts := testChartsHelper()
 	valuesFile := cfg.ChartsValuesDir + "/" + charts.Charts[0].Name + ".yaml"
 
-	if _, err := os.Stat(valuesFile); err == nil {
-		t.Errorf("Values override file already exists: %s", valuesFile)
-	}
+	assert := assert.New(t)
+	assert.NoFileExists(valuesFile, "Expects values file to not exist")
 
 	err := createValuesOverride(charts)
-	if err != nil {
-		t.Errorf("Expected no error creating Values override, got %s", err.Error())
-	}
-
-	if _, err := os.Stat(valuesFile); os.IsNotExist(err) {
-		t.Errorf("Expected values file, but got file not found. %s", err.Error())
-	}
+	assert.NoError(err, "expects no error")
+	assert.FileExists(valuesFile, "expects values file to exist")
 
 	t.Cleanup(func() {
-		os.RemoveAll(valuesFile)
+		os.Remove(valuesFile)
 	})
 }
 
@@ -80,28 +67,20 @@ func TestRemoveFiles(t *testing.T) {
 	file := dir + "/write-test"
 
 	err := os.MkdirAll(dir, 0755)
-	if err != nil {
-		t.Errorf("Expected to create directories: %s. Got error: %s", dir, err.Error())
-	}
+	assert := assert.New(t)
+	assert.NoError(err, "expects no error")
 
 	bytes := []byte("test\n")
 	ioutil.WriteFile(file, bytes, 0644)
 
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		t.Errorf("Expected to create file: %s, got error: %s", file, err.Error())
-	}
+	assert.FileExists(file, "Expects file to be created")
 
 	err = removeFiles(dir)
-	if err != nil {
-		t.Errorf("Expected to remove files: %s, got error %s", dir, err.Error())
-	}
+	assert.NoError(err, "Expects no error")
 
-	if _, err := os.Stat(file); err == nil {
-		t.Errorf("Expected to remove file: %s, but file still exists!", file)
-	}
+	assert.NoFileExists(file, "Expects file to have been deleted")
 
 	err = removeFiles("/tmp/fake-file-test")
-	if err != nil {
-		t.Errorf("Tried to remove non-existant file, should ignore, got error: %s", err.Error())
-	}
+	assert.NoError(err, "Expected to no error")
+	assert.NoFileExists("/tmp/fake-file-test", "Expects file to be deleted")
 }
